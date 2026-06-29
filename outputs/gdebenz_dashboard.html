@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Топливная ситуация — Московская область</title>
+  <title>Топливная ситуация — Москва и Московская область</title>
   <link rel="preconnect" href="https://api-maps.yandex.ru">
   <style>
     :root{
@@ -44,8 +44,8 @@
 <header>
   <div class="head">
     <div class="title">
-      <h1>Топливная ситуация в Московской области</h1>
-      <p>Управленческий дашборд по выгрузке gdebenz.ru: статусы АЗС, очереди, подтверждения, отметки водителей за 24 часа, топливо и городские округа.</p>
+      <h1>Топливная ситуация в Москве и Московской области</h1>
+      <p>Управленческий дашборд по выгрузке gdebenz.ru: статусы АЗС, очереди, подтверждения, отметки водителей за 24 часа, топливо и проблемные округа.</p>
     </div>
     <div class="badge"><span class="dot"></span><span id="refreshLabel">Данные не загружены</span></div>
   </div>
@@ -179,7 +179,7 @@
 </main>
 <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
 <script>
-const expectedFields=['region','district','station_name','brand','lat','lon','osm_id','status','status_code','fuels_now','92','95','98','100','ДТ','confirmations','realCount','last_at'];
+const expectedFields=['exported_at','region','district','station_name','brand','lat','lon','osm_id','status','status_code','fuels_now','92','95','98','100','ДТ','confirmations','realCount','last_at'];
 const fuelColumns=['92','95','98','100','ДТ'];
 const defaultMapCenter=[55.8311,37.3302];
 const defaultMapZoom=11;
@@ -430,7 +430,11 @@ function loadData(rows,source){
   data=rows.map(normalizeRow);
   filtered=[...data];
   syncFilters(); applyFilters();
-  document.getElementById('refreshLabel').textContent=`Загружено: ${data.length}`;
+  const updated=data.map(row=>row.exported_at).find(Boolean) ||
+    data.map(row=>row.last_at).filter(Boolean).sort().at(-1) || '';
+  document.getElementById('refreshLabel').textContent=updated
+    ? `Обновлено: ${updated} · АЗС: ${data.length}`
+    : `Загружено АЗС: ${data.length}`;
   document.getElementById('importStatus').innerHTML=`<div class="decision ok"><h3>Файл загружен</h3><div>${esc(source)} · строк: <b>${data.length}</b></div></div>`;
 }
 async function loadDefault(){
@@ -464,6 +468,7 @@ document.getElementById('loadDefaultBtn').onclick=loadDefault;
 document.getElementById('clearBtn').onclick=()=>loadData([],'очищено');
 document.getElementById('exportBtn').onclick=exportCSV;
 render();
+loadDefault();
 </script>
 </body>
 </html>
