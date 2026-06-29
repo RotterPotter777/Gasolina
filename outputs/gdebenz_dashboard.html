@@ -1,292 +1,469 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>АЗС Московской области</title>
-  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Топливная ситуация — Московская область</title>
+  <link rel="preconnect" href="https://api-maps.yandex.ru">
   <style>
-    :root {
-      --bg: #f5f6f1;
-      --panel: #ffffff;
-      --ink: #1f2933;
-      --muted: #687381;
-      --line: #d9ded6;
-      --accent: #176f5d;
-      --danger: #c93b32;
-      --warn: #b86a00;
-      --ok: #18804b;
-      --low: #7a5a00;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    :root{
+      --bg:#f5f7fb; --panel:#fff; --ink:#182033; --muted:#6b7280; --line:#e5e7eb;
+      --green:#20a464; --orange:#f59e0b; --yellow:#eab308; --red:#e5484d; --blue:#2563eb; --violet:#7c3aed; --dark:#111827;
+      --shadow:0 10px 30px rgba(17,24,39,.08); --radius:18px;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); }
-    header { padding: 22px 28px 14px; border-bottom: 1px solid var(--line); background: #fbfcf8; }
-    h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.1; letter-spacing: 0; }
-    .sub { color: var(--muted); font-size: 14px; display: flex; gap: 16px; flex-wrap: wrap; }
-    main { padding: 18px 28px 28px; }
-    .toolbar, .filters, .cards, .tabs { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .toolbar { justify-content: space-between; margin-bottom: 14px; }
-    .tabs { margin-bottom: 14px; }
-    button, .file {
-      height: 38px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-      border-radius: 6px; padding: 0 13px; font-weight: 650; cursor: pointer;
-    }
-    button.active { background: var(--accent); border-color: var(--accent); color: white; }
-    input, select {
-      height: 38px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px;
-      background: white; color: var(--ink); min-width: 150px;
-    }
-    input[type="file"] { display: none; }
-    .card {
-      background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px;
-      min-width: 170px;
-    }
-    .metric { font-size: 30px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
-    .label { color: var(--muted); font-size: 13px; }
-    .view { display: none; }
-    .view.active { display: block; }
-    #map { width: 100%; height: 62vh; min-height: 480px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #e8ece5; }
-    table { width: 100%; border-collapse: collapse; background: white; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-    th, td { padding: 10px 9px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; vertical-align: top; }
-    th { background: #eef2ec; font-size: 12px; color: #40505a; position: sticky; top: 0; z-index: 1; }
-    .table-wrap { max-height: 68vh; overflow: auto; border-radius: 8px; }
-    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; color: white; font-size: 12px; font-weight: 700; white-space: nowrap; }
-    .yes { background: var(--ok); }
-    .no { background: var(--danger); }
-    .queue { background: var(--warn); }
-    .low { background: var(--low); }
-    .unknown { background: #64748b; }
-    .notice { background: #fff7df; border: 1px solid #eed38d; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; color: #624900; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
-    .muted { color: var(--muted); }
-    @media (max-width: 720px) {
-      header, main { padding-left: 14px; padding-right: 14px; }
-      input, select, button, .file { width: 100%; }
-      #map { min-height: 420px; height: 58vh; }
-    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    header{padding:22px 28px 16px;background:linear-gradient(135deg,#101827,#203057);color:#fff;position:sticky;top:0;z-index:50;box-shadow:0 4px 18px rgba(0,0,0,.16)}
+    .head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+    .title h1{margin:0;font-size:24px;letter-spacing:-.02em}.title p{margin:6px 0 0;color:#d7deef;max-width:980px}
+    .badge{display:inline-flex;gap:8px;align-items:center;padding:8px 11px;border-radius:999px;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+    .dot{width:9px;height:9px;border-radius:50%;background:#a3e635;box-shadow:0 0 0 5px rgba(163,230,53,.12)}
+    main{padding:22px 28px 36px;max-width:1600px;margin:auto}
+    .notice{background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;border-radius:14px;padding:12px 14px;margin-bottom:16px;box-shadow:var(--shadow)}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}.tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 14px;cursor:pointer;color:#374151}.tab.active{background:#111827;color:#fff;border-color:#111827}
+    .view{display:none}.view.active{display:block}
+    .grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(6,minmax(150px,1fr));margin-bottom:16px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .kpi{padding:16px}.kpi .label{color:var(--muted);font-size:12px}.kpi .value{font-size:28px;font-weight:800;margin:6px 0}.kpi .sub{font-size:12px;color:var(--muted)}
+    .filters{display:grid;grid-template-columns:1.2fr repeat(5,minmax(145px,.8fr));gap:10px;margin-bottom:16px}
+    .filters input,.filters select,.filters button,.upload-row input{width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;color:#111827}
+    .filters button,.btn{cursor:pointer;background:#111827!important;color:#fff!important;border-color:#111827!important;border:1px solid #111827;border-radius:12px;padding:10px 12px}
+    .btn.secondary{background:#fff!important;color:#111827!important;border-color:var(--line)!important}
+    .two{grid-template-columns:1.35fr .65fr}.three{grid-template-columns:1fr 1fr 1fr}.section{padding:16px}.section h2{font-size:18px;margin:0 0 12px}.section h3{font-size:15px;margin:14px 0 8px}.muted{color:var(--muted)}
+    table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top} th{font-size:12px;color:#4b5563;background:#f9fafb;position:sticky;top:0;z-index:2} tbody tr:hover{background:#f9fafb}.table-wrap{max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:14px}
+    .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:700;white-space:nowrap}.s-green{background:#dcfce7;color:#166534}.s-orange{background:#ffedd5;color:#9a3412}.s-yellow{background:#fef9c3;color:#854d0e}.s-red{background:#fee2e2;color:#991b1b}.s-gray{background:#f3f4f6;color:#374151}.s-blue{background:#dbeafe;color:#1e40af}
+    .bar{height:10px;background:#eef2f7;border-radius:999px;overflow:hidden}.bar span{display:block;height:100%;border-radius:999px}
+    .legend{display:flex;gap:10px;flex-wrap:wrap}.legend .item{display:flex;gap:6px;align-items:center;color:#4b5563;font-size:12px}.sw{width:12px;height:12px;border-radius:4px}
+    .map{height:650px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#eef2f7}
+    .decision{border-left:5px solid var(--line);padding:12px 14px;border-radius:14px;background:#fff;margin-bottom:10px}.decision.crit{border-color:var(--red);background:#fff1f2}.decision.warn{border-color:var(--orange);background:#fff7ed}.decision.ok{border-color:var(--green);background:#f0fdf4}
+    .decision h3{margin:0 0 4px}.source{font-size:12px;color:#6b7280}.upload{display:grid;grid-template-columns:1fr 1fr;gap:16px}.upload-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;white-space:pre-wrap}.foot{margin-top:18px;color:#6b7280;font-size:12px}
+    @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.two,.three,.upload,.upload-row{grid-template-columns:1fr}.head{display:block}.badge{margin-top:10px}.map{height:520px}}
   </style>
 </head>
 <body>
-  <header>
-    <h1>АЗС Московской области</h1>
-    <div class="sub">
-      <span id="updated">Обновлено: нет данных</span>
-      <span id="source">Источник: файл не загружен</span>
-      <span id="visibleCount">Показано: 0</span>
+<header>
+  <div class="head">
+    <div class="title">
+      <h1>Топливная ситуация в Московской области</h1>
+      <p>Управленческий дашборд по выгрузке gdebenz.ru: статусы АЗС, очереди, подтверждения, отметки водителей за 24 часа, топливо и городские округа.</p>
     </div>
-  </header>
+    <div class="badge"><span class="dot"></span><span id="refreshLabel">Данные не загружены</span></div>
+  </div>
+</header>
+<main>
+  <div class="notice"><b>Источник:</b> краудсорсинговые отметки водителей. Критичные точки требуют проверки перед принятием решений.</div>
 
-  <main>
-    <div class="toolbar">
-      <div class="tabs">
-        <button class="tab active" data-view="summary">Сводка</button>
-        <button class="tab" data-view="mapView">Карта</button>
-        <button class="tab" data-view="tableView">Таблица</button>
-        <button class="tab" data-view="districts">Округа</button>
-      </div>
-      <label class="file">
-        Импорт данных
-        <input id="fileInput" type="file" accept=".json,.csv">
-      </label>
-    </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="summary">Сводка</button>
+    <button class="tab" data-tab="maptab">Карта</button>
+    <button class="tab" data-tab="tabletab">Таблица АЗС</button>
+    <button class="tab" data-tab="districts">Округа</button>
+    <button class="tab" data-tab="decisions">Решения</button>
+    <button class="tab" data-tab="data">Загрузка данных</button>
+  </div>
 
-    <div id="notice" class="notice">При размещении онлайн дашборд загрузит JSON автоматически. Локально можно выбрать файл вручную.</div>
-
+  <section class="view active" id="summary">
     <div class="filters">
-      <input id="search" placeholder="Поиск по названию">
+      <input id="q" placeholder="Поиск: АЗС, бренд, округ, топливо" />
       <select id="statusFilter"><option value="">Все статусы</option></select>
-      <select id="fuelFilter"><option value="">Все виды топлива</option><option>92</option><option>95</option><option>98</option><option>100</option><option>ДТ</option></select>
+      <select id="fuelFilter"><option value="">Все виды топлива</option></select>
       <select id="brandFilter"><option value="">Все бренды</option></select>
       <select id="districtFilter"><option value="">Все округа</option></select>
+      <select id="regionFilter"><option value="">Все регионы</option></select>
     </div>
-
-    <section id="summary" class="view active">
-      <div class="cards grid" id="cards" style="margin-top: 14px;"></div>
-    </section>
-
-    <section id="mapView" class="view">
-      <div id="map" style="margin-top: 14px;"></div>
-    </section>
-
-    <section id="tableView" class="view">
-      <div class="table-wrap" style="margin-top: 14px;">
-        <table>
-          <thead><tr><th>АЗС</th><th>Округ</th><th>Статус</th><th>Топливо</th><th>Подтверждения</th><th>Отметок 24ч</th><th>Координаты</th></tr></thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+    <div class="grid kpis">
+      <div class="card kpi"><div class="label">АЗС в выборке</div><div class="value" id="kpiTotal">0</div><div class="sub">после фильтров</div></div>
+      <div class="card kpi"><div class="label">Есть бензин</div><div class="value" id="kpiOk">0</div><div class="sub">статус yes</div></div>
+      <div class="card kpi"><div class="label">Очередь</div><div class="value" id="kpiQueue">0</div><div class="sub">есть, но очередь</div></div>
+      <div class="card kpi"><div class="label">Мало</div><div class="value" id="kpiLow">0</div><div class="sub">низкий остаток</div></div>
+      <div class="card kpi"><div class="label">Нет бензина</div><div class="value" id="kpiEmpty">0</div><div class="sub">красный статус</div></div>
+      <div class="card kpi"><div class="label">Отметок за 24ч</div><div class="value" id="kpiMarks">0</div><div class="sub">сумма realCount</div></div>
+    </div>
+    <div class="grid two">
+      <div class="card section">
+        <h2>Распределение статусов</h2>
+        <div id="statusBars"></div>
       </div>
-    </section>
-
-    <section id="districts" class="view">
-      <div class="table-wrap" style="margin-top: 14px;">
-        <table>
-          <thead><tr><th>Округ</th><th>АЗС</th><th>Есть</th><th>Очередь</th><th>Мало</th><th>Нет</th><th>Отметок 24ч</th></tr></thead>
-          <tbody id="districtBody"></tbody>
-        </table>
+      <div class="card section">
+        <h2>Краткий вывод</h2>
+        <div id="executiveSummary"></div>
+        <div class="legend" style="margin-top:12px">
+          <span class="item"><span class="sw" style="background:var(--green)"></span>Есть</span>
+          <span class="item"><span class="sw" style="background:var(--orange)"></span>Очередь</span>
+          <span class="item"><span class="sw" style="background:var(--yellow)"></span>Мало</span>
+          <span class="item"><span class="sw" style="background:var(--red)"></span>Нет</span>
+        </div>
       </div>
-    </section>
-  </main>
+    </div>
+    <div class="grid three" style="margin-top:16px">
+      <div class="card section"><h2>Топливо</h2><div id="fuelBars"></div></div>
+      <div class="card section"><h2>Активность</h2><div id="activityBars"></div></div>
+      <div class="card section"><h2>Бренды</h2><div id="brandBars"></div></div>
+    </div>
+  </section>
 
-  <script>
-    const DATA_URL = "gdebenz_unified_status_realcount_districts.json";
-    const KRASNOGORSK = [55.8311, 37.3302];
-    const state = { rows: [], filtered: [], map: null, cluster: null };
-    const fields = ["search", "statusFilter", "fuelFilter", "brandFilter", "districtFilter"];
+  <section class="view" id="maptab">
+    <div class="filters">
+      <input id="qMap" placeholder="Поиск: АЗС, бренд, округ, топливо" />
+      <select id="statusFilterMap"><option value="">Все статусы</option></select>
+      <select id="fuelFilterMap"><option value="">Все виды топлива</option></select>
+      <select id="brandFilterMap"><option value="">Все бренды</option></select>
+      <select id="districtFilterMap"><option value="">Все округа</option></select>
+      <select id="regionFilterMap"><option value="">Все регионы</option></select>
+    </div>
+    <div class="grid two">
+      <div class="card section"><h2>Карта загруженных АЗС</h2><div id="map" class="map"></div></div>
+      <div class="card section">
+        <h2>Контроль карты</h2>
+        <div id="mapInfo" class="muted">Загрузите файл во вкладке “Загрузка данных”.</div>
+        <div class="legend" style="margin-top:14px">
+          <span class="item"><span class="sw" style="background:var(--green)"></span>Есть</span>
+          <span class="item"><span class="sw" style="background:var(--orange)"></span>Очередь</span>
+          <span class="item"><span class="sw" style="background:var(--yellow)"></span>Мало</span>
+          <span class="item"><span class="sw" style="background:var(--red)"></span>Нет</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    function statusClass(code) {
-      return ({ yes: "yes", no: "no", queue: "queue", low: "low" }[code] || "unknown");
+  <section class="view" id="tabletab">
+    <div class="filters">
+      <input id="q2" placeholder="Поиск по таблице" />
+      <select id="statusFilter2"><option value="">Все статусы</option></select>
+      <select id="fuelFilter2"><option value="">Все виды топлива</option></select>
+      <select id="brandFilter2"><option value="">Все бренды</option></select>
+      <select id="districtFilter2"><option value="">Все округа</option></select>
+      <button id="exportBtn">Скачать CSV</button>
+    </div>
+    <div class="card section"><h2>АЗС после фильтрации</h2><div class="table-wrap"><table id="azsTable"><thead><tr><th>№</th><th>АЗС</th><th>Бренд</th><th>Регион</th><th>Округ</th><th>Топливо</th><th>Статус</th><th>Подтв.</th><th>24ч</th><th>Обновлено</th><th>Координаты</th></tr></thead><tbody></tbody></table></div></div>
+  </section>
+
+  <section class="view" id="districts">
+    <div class="grid two">
+      <div class="card section"><h2>Проблемные округа</h2><div id="districtBars"></div></div>
+      <div class="card section"><h2>Активные округа по отметкам</h2><div id="districtActivityBars"></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="decisions">
+    <div class="grid three">
+      <div class="card section"><h2>Оперативная проверка</h2><div id="checkList"></div></div>
+      <div class="card section"><h2>Разгрузка очередей</h2><div id="queueList"></div></div>
+      <div class="card section"><h2>Свежие сигналы</h2><div id="freshList"></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="data">
+    <div class="grid upload">
+      <div class="card section">
+        <h2>Загрузить выгрузку</h2>
+        <div class="upload-row">
+          <input type="file" id="fileInput" accept=".csv,.json,text/csv,application/json" />
+          <button class="btn" id="loadDefaultBtn">Загрузить из папки</button>
+          <button class="btn secondary" id="clearBtn">Очистить</button>
+        </div>
+        <p class="muted">Подходит файл `gdebenz_unified_status_realcount_districts.csv` или JSON с той же структурой.</p>
+        <div class="decision ok"><h3>Ожидаемые поля</h3><div class="mono">region, district, station_name, brand, lat, lon, osm_id, status, status_code, fuels_now, 92, 95, 98, 100, ДТ, confirmations, realCount, last_at</div></div>
+      </div>
+      <div class="card section">
+        <h2>Статус импорта</h2>
+        <div id="importStatus" class="muted">Файл пока не загружен.</div>
+        <h3>Файл по умолчанию</h3>
+        <p class="mono">gdebenz_unified_status_realcount_districts.csv</p>
+        <p class="muted">Кнопка “Загрузить из папки” работает, если открыть HTML через локальный сервер. Через двойной клик используйте выбор файла.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">Дашборд работает полностью в браузере: файл читается локально, данные никуда не отправляются.</div>
+</main>
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
+<script>
+const expectedFields=['region','district','station_name','brand','lat','lon','osm_id','status','status_code','fuels_now','92','95','98','100','ДТ','confirmations','realCount','last_at'];
+const fuelColumns=['92','95','98','100','ДТ'];
+const defaultMapCenter=[55.8311,37.3302];
+const defaultMapZoom=11;
+let data=[]; let filtered=[]; let map=null; let markers=[]; let mapReadyPromise=null;
+const statusMeta={
+  yes:{label:'Есть бензин',short:'есть',cls:'s-green',color:'#20a464',rank:1},
+  queue:{label:'Есть, но очередь',short:'очередь',cls:'s-orange',color:'#f59e0b',rank:3},
+  low:{label:'Мало бензина',short:'мало',cls:'s-yellow',color:'#eab308',rank:4},
+  no:{label:'Нет бензина',short:'нет',cls:'s-red',color:'#e5484d',rank:5},
+  unknown:{label:'Нет данных',short:'нет данных',cls:'s-gray',color:'#6b7280',rank:2}
+};
+function norm(v){return (v??'').toString().trim()}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function num(v){const n=parseFloat(String(v??'').replace(',','.')); return Number.isFinite(n)?n:0}
+function intVal(v){const n=parseInt(String(v??'').replace(/[^\d-]/g,''),10); return Number.isFinite(n)?n:0}
+function detectStatus(row){
+  const code=norm(row.status_code).toLowerCase();
+  if(['yes','queue','low','no'].includes(code)) return code;
+  const text=norm(row.status).toLowerCase();
+  if(text.includes('очеред')) return 'queue';
+  if(text.includes('мало')||text.includes('низ')) return 'low';
+  if(text.includes('нет')) return 'no';
+  if(text.includes('есть')) return 'yes';
+  return 'unknown';
+}
+function normalizeRow(row){
+  const out={};
+  expectedFields.forEach(f=>out[f]=norm(row[f]));
+  if(!out.station_name && row.name) out.station_name=norm(row.name);
+  out.brand=out.station_name;
+  out.status_code=detectStatus(out);
+  out.status=statusMeta[out.status_code].label;
+  out.confirmations=intVal(out.confirmations);
+  out.realCount=intVal(out.realCount);
+  fuelColumns.forEach(f=>out[f]=norm(out[f])==='1'?'1':'');
+  if(!fuelColumns.some(f=>out[f]==='1') && out.fuels_now){
+    const t=out.fuels_now.toUpperCase().replaceAll('АИ-','').replaceAll('ДИЗЕЛЬ','ДТ');
+    fuelColumns.forEach(f=>{ if(t.includes(f)) out[f]='1'; });
+  }
+  return out;
+}
+function parseCSV(text){
+  text=text.replace(/^\uFEFF/,'').replace(/\r/g,'');
+  const lines=text.split('\n').filter(line=>line.trim());
+  if(!lines.length) return [];
+  const delim=(lines[0].split(';').length>lines[0].split(',').length)?';':',';
+  const split=(line)=>{
+    const out=[]; let cur=''; let q=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i], next=line[i+1];
+      if(c==='"' && q && next==='"'){cur+='"'; i++; continue}
+      if(c==='"'){q=!q; continue}
+      if(c===delim && !q){out.push(cur); cur=''; continue}
+      cur+=c;
     }
-
-    function statusText(row) {
-      return row.status || ({ yes: "есть бензин", no: "нет бензина", queue: "есть бензин но очередь", low: "мало бензина" }[row.status_code] || "нет данных");
-    }
-
-    function fuels(row) {
-      return ["92", "95", "98", "100", "ДТ"].filter(f => String(row[f] || "").trim()).join(", ") || row.fuels_now || "";
-    }
-
-    function normalizeRows(data) {
-      const rows = Array.isArray(data) ? data : (data.rows || data.stations || []);
-      return rows.map(row => ({ ...row, brand: row.station_name || row.brand || "" }));
-    }
-
-    function parseCsv(text) {
-      const rows = [];
-      let row = [], cell = "", quoted = false;
-      for (let i = 0; i < text.length; i++) {
-        const ch = text[i], next = text[i + 1];
-        if (ch === '"' && quoted && next === '"') { cell += '"'; i++; continue; }
-        if (ch === '"') { quoted = !quoted; continue; }
-        if (ch === "," && !quoted) { row.push(cell); cell = ""; continue; }
-        if ((ch === "\n" || ch === "\r") && !quoted) {
-          if (ch === "\r" && next === "\n") i++;
-          row.push(cell); rows.push(row); row = []; cell = ""; continue;
-        }
-        cell += ch;
-      }
-      if (cell || row.length) { row.push(cell); rows.push(row); }
-      const header = rows.shift().map(h => h.replace(/^\uFEFF/, ""));
-      return rows.filter(r => r.length > 1).map(r => Object.fromEntries(header.map((h, i) => [h, r[i] || ""])));
-    }
-
-    function setData(rows, source) {
-      state.rows = normalizeRows(rows).filter(row => row.region === "Московская область" && row.lat && row.lon);
-      document.getElementById("source").textContent = `Источник: ${source}`;
-      const exported = state.rows.find(r => r.exported_at)?.exported_at || "";
-      const latest = state.rows.map(r => r.last_at).filter(Boolean).sort().pop() || "";
-      document.getElementById("updated").textContent = `Обновлено: ${exported || latest || "нет данных"}`;
-      document.getElementById("notice").style.display = state.rows.length ? "none" : "block";
-      fillFilters();
-      render();
-    }
-
-    function fillSelect(id, values) {
-      const select = document.getElementById(id);
-      const current = select.value;
-      const first = select.options[0].textContent;
-      select.innerHTML = `<option value="">${first}</option>` + values.map(v => `<option>${v}</option>`).join("");
-      select.value = values.includes(current) ? current : "";
-    }
-
-    function fillFilters() {
-      fillSelect("statusFilter", [...new Set(state.rows.map(statusText))].filter(Boolean).sort());
-      fillSelect("brandFilter", [...new Set(state.rows.map(r => r.brand))].filter(Boolean).sort((a,b) => a.localeCompare(b, "ru")));
-      fillSelect("districtFilter", [...new Set(state.rows.map(r => r.district))].filter(Boolean).sort((a,b) => a.localeCompare(b, "ru")));
-    }
-
-    function applyFilters() {
-      const q = document.getElementById("search").value.trim().toLowerCase();
-      const status = document.getElementById("statusFilter").value;
-      const fuel = document.getElementById("fuelFilter").value;
-      const brand = document.getElementById("brandFilter").value;
-      const district = document.getElementById("districtFilter").value;
-      state.filtered = state.rows.filter(row => {
-        if (q && !`${row.station_name} ${row.brand}`.toLowerCase().includes(q)) return false;
-        if (status && statusText(row) !== status) return false;
-        if (fuel && !String(row[fuel] || "").trim()) return false;
-        if (brand && row.brand !== brand) return false;
-        if (district && row.district !== district) return false;
-        return true;
-      });
-    }
-
-    function renderCards() {
-      const total = state.filtered.length;
-      const by = key => state.filtered.filter(r => r.status_code === key).length;
-      const real = state.filtered.reduce((sum, r) => sum + Number(r.realCount || 0), 0);
-      const confirmations = state.filtered.reduce((sum, r) => sum + Number(r.confirmations || 0), 0);
-      const items = [
-        ["Всего АЗС", total], ["Есть бензин", by("yes")], ["Очередь", by("queue")],
-        ["Мало бензина", by("low")], ["Нет бензина", by("no")], ["Отметок за 24 часа", real], ["Подтверждений", confirmations]
-      ];
-      document.getElementById("cards").innerHTML = items.map(([label, value]) => `<div class="card"><div class="metric">${value}</div><div class="label">${label}</div></div>`).join("");
-    }
-
-    function renderTable() {
-      document.getElementById("tableBody").innerHTML = state.filtered.slice(0, 1200).map(row => `
-        <tr><td><b>${row.station_name || ""}</b><div class="muted">${row.brand || ""}</div></td><td>${row.district || ""}</td>
-        <td><span class="pill ${statusClass(row.status_code)}">${statusText(row)}</span></td><td>${fuels(row)}</td>
-        <td>${row.confirmations || 0}</td><td>${row.realCount || 0}</td><td>${Number(row.lat).toFixed(5)}, ${Number(row.lon).toFixed(5)}</td></tr>
-      `).join("");
-    }
-
-    function renderDistricts() {
-      const map = new Map();
-      state.filtered.forEach(row => {
-        const name = row.district || "Не указан";
-        const item = map.get(name) || { total: 0, yes: 0, queue: 0, low: 0, no: 0, real: 0 };
-        item.total++; if (item[row.status_code] !== undefined) item[row.status_code]++;
-        item.real += Number(row.realCount || 0); map.set(name, item);
-      });
-      document.getElementById("districtBody").innerHTML = [...map.entries()].sort((a,b) => b[1].total - a[1].total).map(([name, item]) => `
-        <tr><td>${name}</td><td>${item.total}</td><td>${item.yes}</td><td>${item.queue}</td><td>${item.low}</td><td>${item.no}</td><td>${item.real}</td></tr>
-      `).join("");
-    }
-
-    function initMap() {
-      if (state.map || !window.ymaps) return;
-      ymaps.ready(() => {
-        state.map = new ymaps.Map("map", { center: KRASNOGORSK, zoom: 11, controls: ["zoomControl", "fullscreenControl"] });
-        renderMap();
-      });
-    }
-
-    function renderMap() {
-      if (!state.map) return;
-      state.map.geoObjects.removeAll();
-      const points = state.filtered.map(row => {
-        const body = `<b>${row.station_name || ""}</b><br>${row.district || ""}<br>${statusText(row)}<br>Топливо: ${fuels(row) || "нет данных"}<br>Отметок 24ч: ${row.realCount || 0}`;
-        return new ymaps.Placemark([Number(row.lat), Number(row.lon)], { balloonContent: body }, { preset: "islands#circleDotIcon", iconColor: row.status_code === "yes" ? "#18804b" : row.status_code === "queue" ? "#b86a00" : row.status_code === "low" ? "#7a5a00" : "#c93b32" });
-      });
-      points.forEach(point => state.map.geoObjects.add(point));
-      if (points.length && hasActiveFilters()) state.map.setBounds(state.map.geoObjects.getBounds(), { checkZoomRange: true, zoomMargin: 36 });
-      if (!hasActiveFilters()) state.map.setCenter(KRASNOGORSK, 11);
-    }
-
-    function hasActiveFilters() {
-      return fields.some(id => document.getElementById(id).value);
-    }
-
-    function render() {
-      applyFilters();
-      document.getElementById("visibleCount").textContent = `Показано: ${state.filtered.length}`;
-      renderCards(); renderTable(); renderDistricts(); renderMap();
-    }
-
-    document.querySelectorAll(".tab").forEach(button => button.addEventListener("click", () => {
-      document.querySelectorAll(".tab, .view").forEach(el => el.classList.remove("active"));
-      button.classList.add("active");
-      document.getElementById(button.dataset.view).classList.add("active");
-      if (button.dataset.view === "mapView") initMap();
-    }));
-    fields.forEach(id => document.getElementById(id).addEventListener("input", render));
-    document.getElementById("fileInput").addEventListener("change", async event => {
-      const file = event.target.files[0]; if (!file) return;
-      const text = await file.text();
-      setData(file.name.endsWith(".json") ? JSON.parse(text) : parseCsv(text), file.name);
+    out.push(cur);
+    return out.map(x=>x.trim());
+  };
+  const head=split(lines[0]).map(h=>h.trim());
+  return lines.slice(1).map(line=>{
+    const vals=split(line); const row={};
+    head.forEach((h,i)=>row[h]=vals[i]??'');
+    return normalizeRow(row);
+  }).filter(row=>row.station_name||row.osm_id||row.lat);
+}
+function parseFileText(text,name){
+  if(name.toLowerCase().endsWith('.json') || text.trim().startsWith('[')){
+    const rows=JSON.parse(text);
+    return rows.map(normalizeRow);
+  }
+  return parseCSV(text);
+}
+function setOptions(id,values,mapper=x=>x){
+  const el=document.getElementById(id); if(!el) return;
+  const first=el.options[0].outerHTML;
+  const opts=[...new Set(values.map(mapper).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ru'));
+  el.innerHTML=first+opts.map(v=>`<option>${esc(v)}</option>`).join('');
+}
+function syncFilters(){
+  ['statusFilter','statusFilter2','statusFilterMap'].forEach(id=>setOptions(id,data.map(d=>statusMeta[d.status_code].label)));
+  ['fuelFilter','fuelFilter2','fuelFilterMap'].forEach(id=>setOptions(id,data.flatMap(d=>fuelColumns.filter(f=>d[f]==='1'))));
+  ['brandFilter','brandFilter2','brandFilterMap'].forEach(id=>setOptions(id,data.map(d=>d.brand||'Без бренда')));
+  ['districtFilter','districtFilter2','districtFilterMap'].forEach(id=>setOptions(id,data.map(d=>d.district)));
+  ['regionFilter','regionFilterMap'].forEach(id=>setOptions(id,data.map(d=>d.region)));
+}
+function getVal(id){return norm(document.getElementById(id)?.value)}
+const filterGroups=[
+  ['q','q2','qMap'],
+  ['statusFilter','statusFilter2','statusFilterMap'],
+  ['fuelFilter','fuelFilter2','fuelFilterMap'],
+  ['brandFilter','brandFilter2','brandFilterMap'],
+  ['districtFilter','districtFilter2','districtFilterMap'],
+  ['regionFilter','regionFilterMap']
+];
+function groupVal(ids){return ids.map(getVal).find(Boolean)||''}
+function syncFilterGroup(changedId){
+  const group=filterGroups.find(ids=>ids.includes(changedId));
+  if(!group) return;
+  const value=getVal(changedId);
+  group.forEach(id=>{
+    if(id===changedId) return;
+    const el=document.getElementById(id);
+    if(el && el.value!==value) el.value=value;
+  });
+}
+function applyFilters(){
+  const q=groupVal(['q','q2','qMap']).toLowerCase();
+  const st=groupVal(['statusFilter','statusFilter2','statusFilterMap']);
+  const fuel=groupVal(['fuelFilter','fuelFilter2','fuelFilterMap']);
+  const brand=groupVal(['brandFilter','brandFilter2','brandFilterMap']);
+  const district=groupVal(['districtFilter','districtFilter2','districtFilterMap']);
+  const region=groupVal(['regionFilter','regionFilterMap']);
+  filtered=data.filter(d=>{
+    const hay=[d.station_name,d.brand,d.region,d.district,d.osm_id,d.fuels_now,d.status].join(' ').toLowerCase();
+    return (!q||hay.includes(q)) &&
+      (!st||statusMeta[d.status_code].label===st) &&
+      (!fuel||d[fuel]==='1') &&
+      (!brand||(d.brand||'Без бренда')===brand) &&
+      (!district||d.district===district) &&
+      (!region||d.region===region);
+  });
+  render();
+}
+function hasActiveFilters(){
+  return filterGroups.some(ids=>Boolean(groupVal(ids)));
+}
+function statusPill(code){const m=statusMeta[code]||statusMeta.unknown; return `<span class="pill ${m.cls}">${m.label}</span>`}
+function countStatus(code){return filtered.filter(d=>d.status_code===code).length}
+function renderKPIs(){
+  document.getElementById('kpiTotal').textContent=filtered.length;
+  document.getElementById('kpiOk').textContent=countStatus('yes');
+  document.getElementById('kpiQueue').textContent=countStatus('queue');
+  document.getElementById('kpiLow').textContent=countStatus('low');
+  document.getElementById('kpiEmpty').textContent=countStatus('no');
+  document.getElementById('kpiMarks').textContent=filtered.reduce((s,d)=>s+d.realCount,0);
+}
+function renderStatusBars(){
+  const total=Math.max(filtered.length,1);
+  const order=['yes','queue','low','no','unknown'];
+  document.getElementById('statusBars').innerHTML=order.map(code=>{
+    const m=statusMeta[code], n=countStatus(code), pct=Math.round(n/total*100);
+    return `<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b>${m.label}</b><span>${n} / ${pct}%</span></div><div class="bar"><span style="width:${pct}%;background:${m.color}"></span></div></div>`;
+  }).join('');
+}
+function renderFuelBars(){
+  const max=Math.max(...fuelColumns.map(f=>filtered.filter(d=>d[f]==='1').length),1);
+  document.getElementById('fuelBars').innerHTML=fuelColumns.map(f=>{
+    const n=filtered.filter(d=>d[f]==='1').length, pct=Math.round(n/max*100);
+    return `<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b>${f}</b><span>${n}</span></div><div class="bar"><span style="width:${pct}%;background:var(--blue)"></span></div></div>`;
+  }).join('');
+}
+function topRows(keyFn,valueFn,limit=10){
+  const map=new Map();
+  filtered.forEach(d=>{
+    const key=keyFn(d)||'Не указано';
+    const v=map.get(key)||{total:0,problem:0,marks:0};
+    v.total++; v.marks+=d.realCount; if(['queue','low','no'].includes(d.status_code)) v.problem++;
+    map.set(key,v);
+  });
+  return [...map.entries()].sort((a,b)=>valueFn(b[1])-valueFn(a[1]) || b[1].total-a[1].total).slice(0,limit);
+}
+function renderMetricBars(id,rows,valueFn,colorFn,labelFn){
+  const max=Math.max(...rows.map(([,v])=>valueFn(v)),1);
+  document.getElementById(id).innerHTML=rows.map(([k,v])=>{
+    const n=valueFn(v), pct=Math.round(n/max*100);
+    return `<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b>${esc(k)}</b><span>${labelFn(v)}</span></div><div class="bar"><span style="width:${pct}%;background:${colorFn(v)}"></span></div><div class="source">всего: ${v.total}, проблемных: ${v.problem}, отметок 24ч: ${v.marks}</div></div>`;
+  }).join('') || '<p class="muted">Нет данных.</p>';
+}
+function renderGroups(){
+  renderMetricBars('districtBars', topRows(d=>d.district,v=>v.problem,14), v=>v.problem, v=>v.problem?statusMeta.no.color:'#cbd5e1', v=>`проблемных: ${v.problem}`);
+  renderMetricBars('districtActivityBars', topRows(d=>d.district,v=>v.marks,14), v=>v.marks, v=>'var(--blue)', v=>`отметок: ${v.marks}`);
+  renderMetricBars('activityBars', topRows(d=>d.district,v=>v.marks,8), v=>v.marks, v=>'var(--blue)', v=>`${v.marks}`);
+  renderMetricBars('brandBars', topRows(d=>d.brand||'Без бренда',v=>v.total,8), v=>v.total, v=>'#64748b', v=>`${v.total}`);
+}
+function renderSummary(){
+  const n=filtered.length, bad=countStatus('no'), queue=countStatus('queue'), low=countStatus('low'), problem=bad+queue+low;
+  let cls='ok', title='Критичных сигналов нет', text='В текущей выборке нет красных, жёлтых или оранжевых статусов.';
+  if(n===0){cls='warn'; title='Нет загруженных данных'; text='Загрузите CSV/JSON во вкладке “Загрузка данных”.'}
+  else if(bad>0 || problem/n>.35){cls='crit'; title='Требуется оперативная проверка'; text=`Проблемные статусы у ${problem} из ${n} АЗС. Красных точек: ${bad}, очередей: ${queue}, низких остатков: ${low}.`;}
+  else if(problem>0){cls='warn'; title='Ситуация требует мониторинга'; text=`Есть ${problem} проблемных сигналов. Приоритет — свежие отметки с высоким realCount.`;}
+  document.getElementById('executiveSummary').innerHTML=`<div class="decision ${cls}"><h3>${title}</h3><div>${text}</div></div><p class="muted">Суммарно отметок водителей за 24 часа: <b>${filtered.reduce((s,d)=>s+d.realCount,0)}</b>. Подтверждений: <b>${filtered.reduce((s,d)=>s+d.confirmations,0)}</b>.</p>`;
+}
+function fuelText(d){
+  const fuels=fuelColumns.filter(f=>d[f]==='1');
+  return fuels.length?fuels.join(', '):(d.fuels_now||'—');
+}
+function renderTable(){
+  const body=document.querySelector('#azsTable tbody');
+  body.innerHTML=filtered.map((d,i)=>`<tr><td>${i+1}</td><td><b>${esc(d.station_name)||'—'}</b><div class="source">${esc(d.osm_id)}</div></td><td>${esc(d.brand)||'—'}</td><td>${esc(d.region)||'—'}</td><td>${esc(d.district)||'—'}</td><td>${esc(fuelText(d))}</td><td>${statusPill(d.status_code)}</td><td>${d.confirmations}</td><td>${d.realCount}</td><td>${esc(d.last_at)||'—'}</td><td>${esc(d.lat)}, ${esc(d.lon)}</td></tr>`).join('') || '<tr><td colspan="11" class="muted">Нет данных.</td></tr>';
+}
+function decisionRow(d,cls='warn'){
+  return `<div class="decision ${cls}"><b>${esc(d.station_name)||'АЗС'}</b><br><span class="muted">${esc(d.brand)||'—'} · ${esc(d.region)} · ${esc(d.district)}</span><br>${statusPill(d.status_code)} <span class="pill s-blue">${d.realCount} отметок 24ч</span> <span class="pill s-gray">${d.confirmations} подтв.</span></div>`;
+}
+function renderDecisions(){
+  const critical=[...filtered].filter(d=>['no','low'].includes(d.status_code)).sort((a,b)=>b.realCount-a.realCount || statusMeta[b.status_code].rank-statusMeta[a.status_code].rank).slice(0,8);
+  const queues=[...filtered].filter(d=>d.status_code==='queue').sort((a,b)=>b.realCount-a.realCount).slice(0,8);
+  const fresh=[...filtered].filter(d=>d.realCount>0).sort((a,b)=>b.realCount-a.realCount).slice(0,8);
+  document.getElementById('checkList').innerHTML=critical.map(d=>decisionRow(d,d.status_code==='no'?'crit':'warn')).join('')||'<p class="muted">Критичных точек нет.</p>';
+  document.getElementById('queueList').innerHTML=queues.map(d=>decisionRow(d,'warn')).join('')||'<p class="muted">Очередей нет.</p>';
+  document.getElementById('freshList').innerHTML=fresh.map(d=>decisionRow(d,['no','low','queue'].includes(d.status_code)?'warn':'ok')).join('')||'<p class="muted">Свежих отметок нет.</p>';
+}
+function initMap(){
+  if(map) return Promise.resolve(map);
+  if(mapReadyPromise) return mapReadyPromise;
+  if(typeof ymaps==='undefined'){
+    document.getElementById('mapInfo').innerHTML='Яндекс.Карты не загрузились. Проверьте доступ к интернету или ключ API, если он требуется в вашей среде.';
+    return Promise.resolve(null);
+  }
+  mapReadyPromise=new Promise(resolve=>{
+    ymaps.ready(()=>{
+      map=new ymaps.Map('map',{center:defaultMapCenter,zoom:defaultMapZoom,controls:['zoomControl','fullscreenControl','typeSelector']},{suppressMapOpenBlock:true});
+      resolve(map);
     });
-    fetch(DATA_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject()).then(data => setData(data, DATA_URL)).catch(() => {});
-  </script>
+  });
+  return mapReadyPromise;
+}
+async function renderMap(){
+  const ym=await initMap();
+  if(!ym) return;
+  markers.forEach(m=>ym.geoObjects.remove(m)); markers=[];
+  const pts=[];
+  filtered.forEach(d=>{
+    const lat=num(d.lat), lon=num(d.lon); if(!lat||!lon) return;
+    const meta=statusMeta[d.status_code]||statusMeta.unknown;
+    const marker=new ymaps.Placemark([lat,lon],{
+      hintContent: `${d.station_name || 'АЗС'} · ${statusMeta[d.status_code]?.label || ''}`,
+      balloonContent: `<b>${esc(d.station_name)}</b><br>${esc(d.brand)||'—'}<br>${esc(d.region)} · ${esc(d.district)}<br>${statusPill(d.status_code)}<br>Топливо: ${esc(fuelText(d))}<br>Подтверждения: ${d.confirmations}<br>Отметки 24ч: ${d.realCount}<br>${esc(d.last_at)||''}`
+    },{
+      preset:'islands#circleIcon',
+      iconColor:meta.color
+    });
+    ym.geoObjects.add(marker);
+    markers.push(marker);
+    pts.push([lat,lon]);
+  });
+  if(pts.length && hasActiveFilters()){
+    ym.setBounds(ymaps.util.bounds.fromPoints(pts),{checkZoomRange:true,zoomMargin:30});
+  }else{
+    ym.setCenter(defaultMapCenter,defaultMapZoom,{duration:0});
+  }
+  document.getElementById('mapInfo').innerHTML=pts.length?`На карте отображено точек: <b>${pts.length}</b>`:'Нет координат в текущей выборке.';
+}
+function render(){
+  renderKPIs(); renderStatusBars(); renderFuelBars(); renderGroups(); renderSummary(); renderTable(); renderDecisions();
+  setTimeout(renderMap,80);
+}
+function loadData(rows,source){
+  data=rows.map(normalizeRow);
+  filtered=[...data];
+  syncFilters(); applyFilters();
+  document.getElementById('refreshLabel').textContent=`Загружено: ${data.length}`;
+  document.getElementById('importStatus').innerHTML=`<div class="decision ok"><h3>Файл загружен</h3><div>${esc(source)} · строк: <b>${data.length}</b></div></div>`;
+}
+async function loadDefault(){
+  try{
+    const res=await fetch('gdebenz_unified_status_realcount_districts.csv',{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    loadData(parseCSV(await res.text()),'gdebenz_unified_status_realcount_districts.csv');
+  }catch(e){
+    document.getElementById('importStatus').innerHTML=`<div class="decision warn"><h3>Не удалось загрузить из папки</h3><div>Выберите CSV через кнопку выбора файла.</div></div>`;
+  }
+}
+function exportCSV(){
+  const fields=expectedFields;
+  const rows=[fields.join(',')].concat(filtered.map(d=>fields.map(f=>`"${String(d[f]??'').replaceAll('"','""')}"`).join(',')));
+  const blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='gdebenz_filtered.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('.tab,.view').forEach(el=>el.classList.remove('active'));
+  btn.classList.add('active'); document.getElementById(btn.dataset.tab).classList.add('active');
+  setTimeout(()=>{ if(map) map.container.fitToViewport(); },120);
+});
+['q','q2','qMap','statusFilter','statusFilter2','statusFilterMap','fuelFilter','fuelFilter2','fuelFilterMap','brandFilter','brandFilter2','brandFilterMap','districtFilter','districtFilter2','districtFilterMap','regionFilter','regionFilterMap'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{syncFilterGroup(id);applyFilters();}));
+document.getElementById('fileInput').addEventListener('change',event=>{
+  const file=event.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{try{loadData(parseFileText(String(reader.result),file.name),file.name)}catch(e){document.getElementById('importStatus').innerHTML=`<div class="decision crit"><h3>Ошибка импорта</h3><div>${esc(e.message)}</div></div>`}};
+  reader.readAsText(file,'utf-8');
+});
+document.getElementById('loadDefaultBtn').onclick=loadDefault;
+document.getElementById('clearBtn').onclick=()=>loadData([],'очищено');
+document.getElementById('exportBtn').onclick=exportCSV;
+render();
+</script>
 </body>
 </html>
