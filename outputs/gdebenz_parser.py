@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import random
 import ssl
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -97,7 +98,7 @@ CSV_FIELDS = [
 ]
 
 
-def json_get(url: str, insecure_ssl: bool, retries: int = 3) -> Any:
+def json_get(url: str, insecure_ssl: bool, retries: int = 7) -> Any:
     last_error: Exception | None = None
     context = ssl._create_unverified_context() if insecure_ssl else None
 
@@ -110,7 +111,7 @@ def json_get(url: str, insecure_ssl: bool, retries: int = 3) -> Any:
             last_error = exc
             if attempt == retries:
                 break
-            time.sleep(0.7 * attempt)
+            time.sleep(min(20.0, 1.5 * (2 ** (attempt - 1))) + random.uniform(0.0, 0.8))
 
     raise RuntimeError(f"Cannot fetch {url}: {last_error}") from last_error
 
@@ -243,18 +244,25 @@ def collect_stations(
     stations: dict[str, dict[str, Any]] = {}
     tiles = iter_tiles(area.bbox, step_lat, step_lon)
     progress = Progress(f"collect {area.area}", len(tiles))
+    failed_tiles = 0
 
     for index, (lat1, lon1, lat2, lon2) in enumerate(tiles, start=1):
-        payload = api_get(
-            "/api/stations",
-            {
-                "lat1": f"{lat1:.6f}",
-                "lon1": f"{lon1:.6f}",
-                "lat2": f"{lat2:.6f}",
-                "lon2": f"{lon2:.6f}",
-            },
-            insecure_ssl,
-        )
+        try:
+            payload = api_get(
+                "/api/stations",
+                {
+                    "lat1": f"{lat1:.6f}",
+                    "lon1": f"{lon1:.6f}",
+                    "lat2": f"{lat2:.6f}",
+                    "lon2": f"{lon2:.6f}",
+                },
+                insecure_ssl,
+            )
+        except RuntimeError as exc:
+            failed_tiles += 1
+            print(f"\nWarning: skipped tile after retries: {exc}")
+            progress.update(index, f"stations={len(stations)}, failed={failed_tiles}")
+            continue
         if not isinstance(payload, list):
             raise RuntimeError(f"Unexpected /api/stations response: {payload!r}")
 
@@ -266,7 +274,7 @@ def collect_stations(
         if delay:
             time.sleep(delay)
 
-    progress.finish(f"stations={len(stations)}")
+    progress.finish(f"stations={len(stations)}, failed={failed_tiles}")
     return sorted(stations.values(), key=lambda item: (str(item["station_name"]), float(item["lat"] or 0)))
 
 
@@ -289,11 +297,14 @@ def enrich_status(stations: list[dict[str, Any]], delay: float, insecure_ssl: bo
         if lat is None or lon is None or not osm_id:
             return osm_id, None
 
-        payload = api_get(
-            "/api/nearby",
-            {"lat": f"{float(lat):.6f}", "lon": f"{float(lon):.6f}", "radius_km": "1"},
-            insecure_ssl,
-        )
+        try:
+            payload = api_get(
+                "/api/nearby",
+                {"lat": f"{float(lat):.6f}", "lon": f"{float(lon):.6f}", "radius_km": "1"},
+                insecure_ssl,
+            )
+        except RuntimeError:
+            return osm_id, None
         nearby = payload.get("stations", []) if isinstance(payload, dict) else []
         match = next((item for item in nearby if str(item.get("osm_id")) == osm_id), None)
         if delay:
@@ -328,7 +339,10 @@ def enrich_real_count(stations: list[dict[str, Any]], delay: float, insecure_ssl
         osm_id = str(station.get("osm_id") or "")
         if not osm_id:
             return osm_id, 0
-        payload = api_get("/api/comments/" + osm_id + "/recent", {"limit": "100"}, insecure_ssl)
+        try:
+            payload = api_get("/api/comments/" + osm_id + "/recent", {"limit": "100"}, insecure_ssl)
+        except RuntimeError:
+            return osm_id, -1
         comments = payload if isinstance(payload, list) else []
         real_count = 0
         for comment in comments:
@@ -347,7 +361,7 @@ def enrich_real_count(stations: list[dict[str, Any]], delay: float, insecure_ssl
         futures = [executor.submit(fetch_one, station) for station in stations]
         for index, future in enumerate(as_completed(futures), start=1):
             osm_id, real_count = future.result()
-            if osm_id in by_id:
+            if osm_id in by_id and real_count >= 0:
                 by_id[osm_id]["realCount"] = real_count
             progress.update(index)
     progress.finish()
@@ -392,12 +406,20 @@ def enrich_districts(
         if station.get("lat") is None or station.get("lon") is None:
             continue
         key = cache_key(station)
+        if key not in cache and station.get("district"):
+            cache[key] = {
+                "region": station.get("region") or "Московская область",
+                "district": station["district"],
+            }
         if key not in cache:
             missing.append((key, float(station["lat"]), float(station["lon"])))
 
     def fetch_one(item: tuple[str, float, float]) -> tuple[str, dict[str, str]]:
         key, lat, lon = item
-        payload = geocoder_get(lat, lon, insecure_ssl)
+        try:
+            payload = geocoder_get(lat, lon, insecure_ssl)
+        except RuntimeError:
+            return key, {}
         region, district = extract_district(payload)
         if delay:
             time.sleep(delay)
@@ -492,6 +514,47 @@ def filter_target_regions(stations: list[dict[str, Any]]) -> list[dict[str, Any]
     return result
 
 
+def seed_from_previous_output(stations: list[dict[str, Any]], output_dir: Path, stem: str) -> None:
+    previous_path = output_dir / f"{stem}.json"
+    if not previous_path.exists():
+        return
+    try:
+        previous = json.loads(previous_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+
+    by_id = {
+        str(item.get("osm_id")): item
+        for item in previous
+        if isinstance(item, dict) and item.get("osm_id")
+    }
+    for station in stations:
+        old = by_id.get(str(station.get("osm_id")))
+        if not old:
+            continue
+        for field in ("district", "realCount", "confirmations", "last_at"):
+            if not station.get(field) and old.get(field) not in (None, ""):
+                station[field] = old[field]
+
+
+def validate_collection(stations: list[dict[str, Any]], output_dir: Path, stem: str) -> None:
+    previous_path = output_dir / f"{stem}.json"
+    previous_count = 0
+    if previous_path.exists():
+        try:
+            previous = json.loads(previous_path.read_text(encoding="utf-8"))
+            previous_count = len(previous) if isinstance(previous, list) else 0
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    minimum = max(100, int(previous_count * 0.7))
+    if len(stations) < minimum:
+        raise RuntimeError(
+            f"Collection looks incomplete: got {len(stations)} stations, expected at least {minimum}. "
+            "Previous output files were preserved."
+        )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Collect gdebenz.ru stations to CSV/JSON.")
     parser.add_argument("--all", action="store_true", help="Build one Moscow oblast file.")
@@ -534,6 +597,17 @@ def main() -> None:
         for area in areas
     ]
     stations = merge_stations(groups)
+    suffix_parts = []
+    if args.with_status:
+        suffix_parts.append("status")
+    if args.with_real_count:
+        suffix_parts.append("realcount")
+    if args.with_districts:
+        suffix_parts.append("districts")
+    suffix = "_" + "_".join(suffix_parts) if suffix_parts else ""
+    output_stem = f"gdebenz_{stem}{suffix}"
+    seed_from_previous_output(stations, args.output_dir, output_stem)
+
     if args.with_status:
         enrich_status(stations, args.delay, args.insecure_ssl, args.workers)
     if args.with_real_count:
@@ -543,15 +617,8 @@ def main() -> None:
     if args.all:
         stations = filter_target_regions(stations)
 
-    suffix_parts = []
-    if args.with_status:
-        suffix_parts.append("status")
-    if args.with_real_count:
-        suffix_parts.append("realcount")
-    if args.with_districts:
-        suffix_parts.append("districts")
-    suffix = "_" + "_".join(suffix_parts) if suffix_parts else ""
-    csv_path, json_path = write_outputs(stations, args.output_dir, f"gdebenz_{stem}{suffix}")
+    validate_collection(stations, args.output_dir, output_stem)
+    csv_path, json_path = write_outputs(stations, args.output_dir, output_stem)
 
     print(f"Done: {len(stations)} stations")
     print(f"CSV:  {csv_path}")
