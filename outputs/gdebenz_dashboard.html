@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>АЗС Московской области</title>
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
+  <style>
+    :root {
+      --bg: #f5f6f1;
+      --panel: #ffffff;
+      --ink: #1f2933;
+      --muted: #687381;
+      --line: #d9ded6;
+      --accent: #176f5d;
+      --danger: #c93b32;
+      --warn: #b86a00;
+      --ok: #18804b;
+      --low: #7a5a00;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    header { padding: 22px 28px 14px; border-bottom: 1px solid var(--line); background: #fbfcf8; }
+    h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.1; letter-spacing: 0; }
+    .sub { color: var(--muted); font-size: 14px; display: flex; gap: 16px; flex-wrap: wrap; }
+    main { padding: 18px 28px 28px; }
+    .toolbar, .filters, .cards, .tabs { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .toolbar { justify-content: space-between; margin-bottom: 14px; }
+    .tabs { margin-bottom: 14px; }
+    button, .file {
+      height: 38px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+      border-radius: 6px; padding: 0 13px; font-weight: 650; cursor: pointer;
+    }
+    button.active { background: var(--accent); border-color: var(--accent); color: white; }
+    input, select {
+      height: 38px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px;
+      background: white; color: var(--ink); min-width: 150px;
+    }
+    input[type="file"] { display: none; }
+    .card {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px;
+      min-width: 170px;
+    }
+    .metric { font-size: 30px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+    .label { color: var(--muted); font-size: 13px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    #map { width: 100%; height: 62vh; min-height: 480px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #e8ece5; }
+    table { width: 100%; border-collapse: collapse; background: white; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    th, td { padding: 10px 9px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; vertical-align: top; }
+    th { background: #eef2ec; font-size: 12px; color: #40505a; position: sticky; top: 0; z-index: 1; }
+    .table-wrap { max-height: 68vh; overflow: auto; border-radius: 8px; }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; color: white; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .yes { background: var(--ok); }
+    .no { background: var(--danger); }
+    .queue { background: var(--warn); }
+    .low { background: var(--low); }
+    .unknown { background: #64748b; }
+    .notice { background: #fff7df; border: 1px solid #eed38d; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; color: #624900; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .muted { color: var(--muted); }
+    @media (max-width: 720px) {
+      header, main { padding-left: 14px; padding-right: 14px; }
+      input, select, button, .file { width: 100%; }
+      #map { min-height: 420px; height: 58vh; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>АЗС Московской области</h1>
+    <div class="sub">
+      <span id="updated">Обновлено: нет данных</span>
+      <span id="source">Источник: файл не загружен</span>
+      <span id="visibleCount">Показано: 0</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="tabs">
+        <button class="tab active" data-view="summary">Сводка</button>
+        <button class="tab" data-view="mapView">Карта</button>
+        <button class="tab" data-view="tableView">Таблица</button>
+        <button class="tab" data-view="districts">Округа</button>
+      </div>
+      <label class="file">
+        Импорт данных
+        <input id="fileInput" type="file" accept=".json,.csv">
+      </label>
+    </div>
+
+    <div id="notice" class="notice">При размещении онлайн дашборд загрузит JSON автоматически. Локально можно выбрать файл вручную.</div>
+
+    <div class="filters">
+      <input id="search" placeholder="Поиск по названию">
+      <select id="statusFilter"><option value="">Все статусы</option></select>
+      <select id="fuelFilter"><option value="">Все виды топлива</option><option>92</option><option>95</option><option>98</option><option>100</option><option>ДТ</option></select>
+      <select id="brandFilter"><option value="">Все бренды</option></select>
+      <select id="districtFilter"><option value="">Все округа</option></select>
+    </div>
+
+    <section id="summary" class="view active">
+      <div class="cards grid" id="cards" style="margin-top: 14px;"></div>
+    </section>
+
+    <section id="mapView" class="view">
+      <div id="map" style="margin-top: 14px;"></div>
+    </section>
+
+    <section id="tableView" class="view">
+      <div class="table-wrap" style="margin-top: 14px;">
+        <table>
+          <thead><tr><th>АЗС</th><th>Округ</th><th>Статус</th><th>Топливо</th><th>Подтверждения</th><th>Отметок 24ч</th><th>Координаты</th></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="districts" class="view">
+      <div class="table-wrap" style="margin-top: 14px;">
+        <table>
+          <thead><tr><th>Округ</th><th>АЗС</th><th>Есть</th><th>Очередь</th><th>Мало</th><th>Нет</th><th>Отметок 24ч</th></tr></thead>
+          <tbody id="districtBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const DATA_URL = "gdebenz_unified_status_realcount_districts.json";
+    const KRASNOGORSK = [55.8311, 37.3302];
+    const state = { rows: [], filtered: [], map: null, cluster: null };
+    const fields = ["search", "statusFilter", "fuelFilter", "brandFilter", "districtFilter"];
+
+    function statusClass(code) {
+      return ({ yes: "yes", no: "no", queue: "queue", low: "low" }[code] || "unknown");
+    }
+
+    function statusText(row) {
+      return row.status || ({ yes: "есть бензин", no: "нет бензина", queue: "есть бензин но очередь", low: "мало бензина" }[row.status_code] || "нет данных");
+    }
+
+    function fuels(row) {
+      return ["92", "95", "98", "100", "ДТ"].filter(f => String(row[f] || "").trim()).join(", ") || row.fuels_now || "";
+    }
+
+    function normalizeRows(data) {
+      const rows = Array.isArray(data) ? data : (data.rows || data.stations || []);
+      return rows.map(row => ({ ...row, brand: row.station_name || row.brand || "" }));
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], cell = "", quoted = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i], next = text[i + 1];
+        if (ch === '"' && quoted && next === '"') { cell += '"'; i++; continue; }
+        if (ch === '"') { quoted = !quoted; continue; }
+        if (ch === "," && !quoted) { row.push(cell); cell = ""; continue; }
+        if ((ch === "\n" || ch === "\r") && !quoted) {
+          if (ch === "\r" && next === "\n") i++;
+          row.push(cell); rows.push(row); row = []; cell = ""; continue;
+        }
+        cell += ch;
+      }
+      if (cell || row.length) { row.push(cell); rows.push(row); }
+      const header = rows.shift().map(h => h.replace(/^\uFEFF/, ""));
+      return rows.filter(r => r.length > 1).map(r => Object.fromEntries(header.map((h, i) => [h, r[i] || ""])));
+    }
+
+    function setData(rows, source) {
+      state.rows = normalizeRows(rows).filter(row => row.region === "Московская область" && row.lat && row.lon);
+      document.getElementById("source").textContent = `Источник: ${source}`;
+      const exported = state.rows.find(r => r.exported_at)?.exported_at || "";
+      const latest = state.rows.map(r => r.last_at).filter(Boolean).sort().pop() || "";
+      document.getElementById("updated").textContent = `Обновлено: ${exported || latest || "нет данных"}`;
+      document.getElementById("notice").style.display = state.rows.length ? "none" : "block";
+      fillFilters();
+      render();
+    }
+
+    function fillSelect(id, values) {
+      const select = document.getElementById(id);
+      const current = select.value;
+      const first = select.options[0].textContent;
+      select.innerHTML = `<option value="">${first}</option>` + values.map(v => `<option>${v}</option>`).join("");
+      select.value = values.includes(current) ? current : "";
+    }
+
+    function fillFilters() {
+      fillSelect("statusFilter", [...new Set(state.rows.map(statusText))].filter(Boolean).sort());
+      fillSelect("brandFilter", [...new Set(state.rows.map(r => r.brand))].filter(Boolean).sort((a,b) => a.localeCompare(b, "ru")));
+      fillSelect("districtFilter", [...new Set(state.rows.map(r => r.district))].filter(Boolean).sort((a,b) => a.localeCompare(b, "ru")));
+    }
+
+    function applyFilters() {
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      const status = document.getElementById("statusFilter").value;
+      const fuel = document.getElementById("fuelFilter").value;
+      const brand = document.getElementById("brandFilter").value;
+      const district = document.getElementById("districtFilter").value;
+      state.filtered = state.rows.filter(row => {
+        if (q && !`${row.station_name} ${row.brand}`.toLowerCase().includes(q)) return false;
+        if (status && statusText(row) !== status) return false;
+        if (fuel && !String(row[fuel] || "").trim()) return false;
+        if (brand && row.brand !== brand) return false;
+        if (district && row.district !== district) return false;
+        return true;
+      });
+    }
+
+    function renderCards() {
+      const total = state.filtered.length;
+      const by = key => state.filtered.filter(r => r.status_code === key).length;
+      const real = state.filtered.reduce((sum, r) => sum + Number(r.realCount || 0), 0);
+      const confirmations = state.filtered.reduce((sum, r) => sum + Number(r.confirmations || 0), 0);
+      const items = [
+        ["Всего АЗС", total], ["Есть бензин", by("yes")], ["Очередь", by("queue")],
+        ["Мало бензина", by("low")], ["Нет бензина", by("no")], ["Отметок за 24 часа", real], ["Подтверждений", confirmations]
+      ];
+      document.getElementById("cards").innerHTML = items.map(([label, value]) => `<div class="card"><div class="metric">${value}</div><div class="label">${label}</div></div>`).join("");
+    }
+
+    function renderTable() {
+      document.getElementById("tableBody").innerHTML = state.filtered.slice(0, 1200).map(row => `
+        <tr><td><b>${row.station_name || ""}</b><div class="muted">${row.brand || ""}</div></td><td>${row.district || ""}</td>
+        <td><span class="pill ${statusClass(row.status_code)}">${statusText(row)}</span></td><td>${fuels(row)}</td>
+        <td>${row.confirmations || 0}</td><td>${row.realCount || 0}</td><td>${Number(row.lat).toFixed(5)}, ${Number(row.lon).toFixed(5)}</td></tr>
+      `).join("");
+    }
+
+    function renderDistricts() {
+      const map = new Map();
+      state.filtered.forEach(row => {
+        const name = row.district || "Не указан";
+        const item = map.get(name) || { total: 0, yes: 0, queue: 0, low: 0, no: 0, real: 0 };
+        item.total++; if (item[row.status_code] !== undefined) item[row.status_code]++;
+        item.real += Number(row.realCount || 0); map.set(name, item);
+      });
+      document.getElementById("districtBody").innerHTML = [...map.entries()].sort((a,b) => b[1].total - a[1].total).map(([name, item]) => `
+        <tr><td>${name}</td><td>${item.total}</td><td>${item.yes}</td><td>${item.queue}</td><td>${item.low}</td><td>${item.no}</td><td>${item.real}</td></tr>
+      `).join("");
+    }
+
+    function initMap() {
+      if (state.map || !window.ymaps) return;
+      ymaps.ready(() => {
+        state.map = new ymaps.Map("map", { center: KRASNOGORSK, zoom: 11, controls: ["zoomControl", "fullscreenControl"] });
+        renderMap();
+      });
+    }
+
+    function renderMap() {
+      if (!state.map) return;
+      state.map.geoObjects.removeAll();
+      const points = state.filtered.map(row => {
+        const body = `<b>${row.station_name || ""}</b><br>${row.district || ""}<br>${statusText(row)}<br>Топливо: ${fuels(row) || "нет данных"}<br>Отметок 24ч: ${row.realCount || 0}`;
+        return new ymaps.Placemark([Number(row.lat), Number(row.lon)], { balloonContent: body }, { preset: "islands#circleDotIcon", iconColor: row.status_code === "yes" ? "#18804b" : row.status_code === "queue" ? "#b86a00" : row.status_code === "low" ? "#7a5a00" : "#c93b32" });
+      });
+      points.forEach(point => state.map.geoObjects.add(point));
+      if (points.length && hasActiveFilters()) state.map.setBounds(state.map.geoObjects.getBounds(), { checkZoomRange: true, zoomMargin: 36 });
+      if (!hasActiveFilters()) state.map.setCenter(KRASNOGORSK, 11);
+    }
+
+    function hasActiveFilters() {
+      return fields.some(id => document.getElementById(id).value);
+    }
+
+    function render() {
+      applyFilters();
+      document.getElementById("visibleCount").textContent = `Показано: ${state.filtered.length}`;
+      renderCards(); renderTable(); renderDistricts(); renderMap();
+    }
+
+    document.querySelectorAll(".tab").forEach(button => button.addEventListener("click", () => {
+      document.querySelectorAll(".tab, .view").forEach(el => el.classList.remove("active"));
+      button.classList.add("active");
+      document.getElementById(button.dataset.view).classList.add("active");
+      if (button.dataset.view === "mapView") initMap();
+    }));
+    fields.forEach(id => document.getElementById(id).addEventListener("input", render));
+    document.getElementById("fileInput").addEventListener("change", async event => {
+      const file = event.target.files[0]; if (!file) return;
+      const text = await file.text();
+      setData(file.name.endsWith(".json") ? JSON.parse(text) : parseCsv(text), file.name);
+    });
+    fetch(DATA_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject()).then(data => setData(data, DATA_URL)).catch(() => {});
+  </script>
+</body>
+</html>
