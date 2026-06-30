@@ -2,11 +2,23 @@
 set -euo pipefail
 
 LABEL="com.rotterpotter.gasolina-update"
-REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$HOME/Library/Application Support/Gasolina"
+REPO_DIR="$APP_DIR/repo"
 PLIST_PATH="$HOME/Library/LaunchAgents/${LABEL}.plist"
 USER_DOMAIN="gui/$(id -u)"
 
 mkdir -p "$HOME/Library/LaunchAgents"
+mkdir -p "$APP_DIR"
+
+GITHUB_IP=$(/usr/bin/python3 -c 'import socket; print(socket.gethostbyname("github.com"))')
+export GIT_SSH_COMMAND="ssh -o HostName=${GITHUB_IP} -o HostKeyAlias=github.com -o UpdateHostKeys=no"
+
+if [[ -d "$REPO_DIR/.git" ]]; then
+  git -C "$REPO_DIR" pull --ff-only origin main
+else
+  git clone git@github.com:RotterPotter777/Gasolina.git "$REPO_DIR"
+fi
 
 cat > "$PLIST_PATH" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -27,9 +39,9 @@ cat > "$PLIST_PATH" <<EOF
   <key>StartInterval</key>
   <integer>3600</integer>
   <key>StandardOutPath</key>
-  <string>${REPO_DIR}/update_data.log</string>
+  <string>${APP_DIR}/update_data.log</string>
   <key>StandardErrorPath</key>
-  <string>${REPO_DIR}/update_data_error.log</string>
+  <string>${APP_DIR}/update_data_error.log</string>
 </dict>
 </plist>
 EOF
@@ -42,4 +54,5 @@ launchctl kickstart -k "${USER_DOMAIN}/${LABEL}"
 echo
 echo "Автообновление Gasolina установлено и запущено."
 echo "Периодичность: каждый час."
-echo "Журнал: ${REPO_DIR}/update_data.log"
+echo "Рабочая копия: ${REPO_DIR}"
+echo "Журнал: ${APP_DIR}/update_data.log"
