@@ -4,6 +4,9 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
+GITHUB_IP=$(/usr/bin/python3 -c 'import socket; print(socket.gethostbyname("github.com"))')
+export GIT_SSH_COMMAND="ssh -o HostName=${GITHUB_IP} -o HostKeyAlias=github.com -o UpdateHostKeys=no"
+
 git pull --ff-only origin main
 
 /usr/bin/python3 outputs/gdebenz_parser.py \
@@ -12,6 +15,7 @@ git pull --ff-only origin main
   --with-real-count \
   --with-districts \
   --workers 24 \
+  --district-cache "${TMPDIR:-/tmp}/gdebenz_district_cache.json" \
   --insecure-ssl
 
 git add \
