@@ -4,8 +4,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
-GITHUB_IP=$(/usr/bin/python3 -c 'import socket; print(socket.gethostbyname("github.com"))')
-export GIT_SSH_COMMAND="ssh -o HostName=${GITHUB_IP} -o HostKeyAlias=github.com -o UpdateHostKeys=no"
+export GIT_SSH_COMMAND="ssh -p 443 -o HostName=ssh.github.com -o HostKeyAlias=github.com -o UpdateHostKeys=no"
 
 git pull --ff-only origin main
 
