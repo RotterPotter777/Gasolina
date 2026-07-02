@@ -21,6 +21,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from http.client import RemoteDisconnected
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -107,7 +108,15 @@ def json_get(url: str, insecure_ssl: bool, retries: int = 7) -> Any:
             request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
             with urlopen(request, timeout=20, context=context) as response:
                 return json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+        except (
+            HTTPError,
+            URLError,
+            TimeoutError,
+            ConnectionError,
+            ssl.SSLError,
+            RemoteDisconnected,
+            json.JSONDecodeError,
+        ) as exc:
             last_error = exc
             if attempt == retries:
                 break
