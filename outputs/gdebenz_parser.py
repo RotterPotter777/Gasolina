@@ -33,7 +33,10 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://gdebenz.ru"
 GEOCODER_URL = "https://api.bigdatacloud.net/data/reverse-geocode-client"
-USER_AGENT = "Mozilla/5.0 (compatible; gdebenz-parser/1.0)"
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 Chrome/138.0 Safari/537.36"
+)
 
 STATUS_LABELS = {
     "no": "нет бензина",
