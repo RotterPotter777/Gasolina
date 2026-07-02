@@ -584,6 +584,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--step-lon", type=float, default=0.50, help="Tile width in degrees.")
     parser.add_argument("--delay", type=float, default=0.0, help="Pause between requests.")
     parser.add_argument("--with-status", action="store_true", help="Enrich every station via /api/nearby.")
+    parser.add_argument(
+        "--status-from-stations",
+        action="store_true",
+        help="Use status from the batch stations response without /api/nearby enrichment.",
+    )
     parser.add_argument("--with-real-count", action="store_true", help="Count driver marks for the last 24 hours.")
     parser.add_argument("--with-districts", action="store_true", help="Fill region and city district by reverse geocoder.")
     parser.add_argument("--workers", type=int, default=24, help="Parallel workers for enrichment.")
@@ -625,7 +630,7 @@ def main() -> None:
     output_stem = f"gdebenz_{stem}{suffix}"
     seed_from_previous_output(stations, args.output_dir, output_stem)
 
-    if args.with_status:
+    if args.with_status and not args.status_from_stations:
         enrich_status(stations, args.delay, args.insecure_ssl, args.workers)
     stations = filter_stations_with_status(stations)
     if args.with_real_count:

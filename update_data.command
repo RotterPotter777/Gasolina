@@ -10,6 +10,8 @@ git pull --ff-only origin main
 
 /usr/bin/python3 outputs/gdebenz_parser.py \
   --all \
+  --with-status \
+  --status-from-stations \
   --with-real-count \
   --with-districts \
   --workers 8 \
