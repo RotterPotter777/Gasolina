@@ -627,13 +627,13 @@ def main() -> None:
 
     if args.with_status:
         enrich_status(stations, args.delay, args.insecure_ssl, args.workers)
+    stations = filter_stations_with_status(stations)
     if args.with_real_count:
         enrich_real_count(stations, args.delay, args.insecure_ssl, args.workers)
     if args.with_districts:
         enrich_districts(stations, args.delay, args.insecure_ssl, args.workers, args.district_cache)
     if args.all:
         stations = filter_target_regions(stations)
-    stations = filter_stations_with_status(stations)
 
     validate_collection(stations, args.output_dir, output_stem)
     csv_path, json_path = write_outputs(stations, args.output_dir, output_stem)

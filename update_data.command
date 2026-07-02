@@ -10,10 +10,9 @@ git pull --ff-only origin main
 
 /usr/bin/python3 outputs/gdebenz_parser.py \
   --all \
-  --with-status \
   --with-real-count \
   --with-districts \
-  --workers 24 \
+  --workers 8 \
   --district-cache "${TMPDIR:-/tmp}/gdebenz_district_cache.json" \
   --insecure-ssl
 

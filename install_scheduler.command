@@ -37,7 +37,7 @@ cat > "$PLIST_PATH" <<EOF
   <key>RunAtLoad</key>
   <true/>
   <key>StartInterval</key>
-  <integer>3600</integer>
+  <integer>10800</integer>
   <key>StandardOutPath</key>
   <string>${APP_DIR}/update_data.log</string>
   <key>StandardErrorPath</key>
@@ -53,6 +53,6 @@ launchctl kickstart -k "${USER_DOMAIN}/${LABEL}"
 
 echo
 echo "Автообновление Gasolina установлено и запущено."
-echo "Периодичность: каждый час."
+echo "Периодичность: каждые 3 часа."
 echo "Рабочая копия: ${REPO_DIR}"
 echo "Журнал: ${APP_DIR}/update_data.log"
