@@ -8,7 +8,7 @@ export GIT_SSH_COMMAND="ssh -p 443 -o HostName=ssh.github.com -o HostKeyAlias=gi
 
 git pull --ff-only origin main
 
-/usr/bin/python3 outputs/gdebenz_parser.py \
+GDEBENZ_USE_CURL=1 /usr/bin/python3 outputs/gdebenz_parser.py \
   --all \
   --with-status \
   --status-from-stations \

@@ -15,8 +15,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import random
 import ssl
+import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -100,12 +102,46 @@ CSV_FIELDS = [
 
 
 def json_get(url: str, insecure_ssl: bool, retries: int = 7) -> Any:
+    if os.environ.get("GDEBENZ_USE_CURL") == "1":
+        command = [
+            "/usr/bin/curl",
+            "--http1.1",
+            "--fail",
+            "--location",
+            "--silent",
+            "--show-error",
+            "--max-time",
+            "20",
+            "--retry",
+            str(max(retries - 1, 0)),
+            "--retry-delay",
+            "1",
+            "--retry-all-errors",
+            "--header",
+            f"User-Agent: {USER_AGENT}",
+            "--header",
+            "Accept: application/json",
+            "--header",
+            f"Referer: {BASE_URL}/",
+            url,
+        ]
+        if insecure_ssl:
+            command.insert(2, "--insecure")
+        try:
+            result = subprocess.run(command, check=True, capture_output=True, timeout=25 * retries)
+            return json.loads(result.stdout.decode("utf-8"))
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Cannot fetch {url} with curl: {exc}") from exc
+
     last_error: Exception | None = None
     context = ssl._create_unverified_context() if insecure_ssl else None
 
     for attempt in range(1, retries + 1):
         try:
-            request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+            request = Request(
+                url,
+                headers={"User-Agent": USER_AGENT, "Accept": "application/json", "Referer": f"{BASE_URL}/"},
+            )
             with urlopen(request, timeout=20, context=context) as response:
                 return json.loads(response.read().decode("utf-8"))
         except (
