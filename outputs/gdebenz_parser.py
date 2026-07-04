@@ -116,9 +116,7 @@ def json_get(url: str, insecure_ssl: bool, retries: int = 7) -> Any:
             "--max-time",
             "20",
             "--retry",
-            str(max(retries - 1, 0)),
-            "--retry-delay",
-            "1",
+            "0",
             "--retry-all-errors",
             "--header",
             f"User-Agent: {USER_AGENT}",
@@ -130,11 +128,22 @@ def json_get(url: str, insecure_ssl: bool, retries: int = 7) -> Any:
         ]
         if insecure_ssl:
             command.insert(2, "--insecure")
-        try:
-            result = subprocess.run(command, check=True, capture_output=True, timeout=25 * retries)
-            return json.loads(result.stdout.decode("utf-8"))
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"Cannot fetch {url} with curl: {exc}") from exc
+        last_error: Exception | None = None
+        for attempt in range(1, retries + 1):
+            try:
+                result = subprocess.run(command, check=True, capture_output=True, timeout=25)
+                return json.loads(result.stdout.decode("utf-8"))
+            except (
+                subprocess.CalledProcessError,
+                subprocess.TimeoutExpired,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+            ) as exc:
+                last_error = exc
+                if attempt < retries:
+                    time.sleep(min(8.0, 1.5 * attempt) + random.uniform(0.0, 0.5))
+
+        raise RuntimeError(f"Cannot fetch {url} with curl after {retries} attempts: {last_error}") from last_error
 
     last_error: Exception | None = None
     context = ssl._create_unverified_context() if insecure_ssl else None
@@ -638,6 +647,11 @@ def parse_args() -> argparse.Namespace:
         help="Disable TLS certificate verification if local Python cannot find root certificates.",
     )
     parser.add_argument("--output-dir", type=Path, default=Path("outputs"))
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Write available stations even when part of the map could not be loaded.",
+    )
     return parser.parse_args()
 
 
@@ -679,7 +693,8 @@ def main() -> None:
     if args.all:
         stations = filter_target_regions(stations)
 
-    validate_collection(stations, args.output_dir, output_stem)
+    if not args.allow_partial:
+        validate_collection(stations, args.output_dir, output_stem)
     csv_path, json_path = write_outputs(stations, args.output_dir, output_stem)
 
     print(f"Done: {len(stations)} stations")

@@ -16,7 +16,8 @@ GDEBENZ_USE_CURL=1 /usr/bin/python3 outputs/gdebenz_parser.py \
   --with-districts \
   --workers 8 \
   --district-cache "${TMPDIR:-/tmp}/gdebenz_district_cache.json" \
-  --insecure-ssl
+  --insecure-ssl \
+  --allow-partial
 
 git add \
   outputs/gdebenz_unified_status_realcount_districts.csv \
